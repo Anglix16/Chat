@@ -6,12 +6,16 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ChatServer {
 
     private static final int PORT = 6000;
     private static List<ClientHandler> clients = new ArrayList<>();
+    private static Set<String> connectedClients = new HashSet<>();
+    private static List<String> messageHistory = new ArrayList<>(); // Historial de mensajes
 
     public static void main(String[] args) {
         try {
@@ -24,6 +28,7 @@ public class ChatServer {
 
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
                 clients.add(clientHandler);
+
 
                 Thread clientThread = new Thread(clientHandler);
                 clientThread.start();
@@ -60,10 +65,42 @@ public class ChatServer {
                 // Leer el nombre del cliente
                 bytesRead = input.read(buffer);
                 clientName = new String(buffer, 0, bytesRead);
+
+                // Verificar si el nombre del cliente ya está en uso
+                synchronized (connectedClients) {
+                    while (connectedClients.contains(clientName)) {
+                        System.out.println("Nombre de cliente duplicado: " + clientName);
+                        // Enviar un mensaje al cliente indicando que el nombre ya está en uso
+                        output.write("El nombre ya está en uso. Por favor, elige otro.\n".getBytes());
+                        output.flush();
+                        // Leer el siguiente nombre del cliente
+                        bytesRead = input.read(buffer);
+                        clientName = new String(buffer, 0, bytesRead);
+                    }
+                    connectedClients.add(clientName);
+                }
+
+                // Notificar a los demás clientes sobre la conexión del nuevo cliente
                 broadcastMessage(clientName + " se ha conectado");
+
+                // Enviar historial de mensajes a los demás clientes
+                synchronized (messageHistory) {
+                    for (String message : messageHistory) {
+                        if (!message.startsWith(clientName)) { // Evitar enviar los propios mensajes al cliente
+                            output.write(message.getBytes());
+                            output.flush();
+                        }
+                    }
+                }
+
                 while ((bytesRead = input.read(buffer)) != -1) {
                     String message = new String(buffer, 0, bytesRead);
                     System.out.println("Mensaje recibido de " + clientName + ": " + message);
+
+                    // Guardar mensaje en historial
+                    synchronized (messageHistory) {
+                        messageHistory.add(clientName + ": " + message + "\n");
+                    }
 
                     // Reenviar el mensaje a todos los clientes incluyendo el nombre del cliente
                     broadcastMessage(clientName + ": " + message);
@@ -79,7 +116,9 @@ public class ChatServer {
                     output.close();
                     clientSocket.close();
                     clients.remove(this);
-                    broadcastMessage(clientName + " se ha desconectado.");  // Informar a los demás clientes
+                    connectedClients.remove(clientName);  // Eliminar el nombre del cliente del conjunto
+                    // Notificar a los demás clientes sobre la desconexión del cliente
+                    broadcastMessage(clientName + " se ha desconectado.");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -89,6 +128,7 @@ public class ChatServer {
         public void sendMessage(String message) {
             try {
                 output.write(message.getBytes());
+                output.flush();
             } catch (IOException e) {
                 e.printStackTrace();
             }
