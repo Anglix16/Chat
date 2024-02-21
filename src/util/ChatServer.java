@@ -67,23 +67,7 @@ public class ChatServer {
                 byte[] buffer = new byte[1024];
                 int bytesRead;
 
-                // Leer el nombre del cliente
-                bytesRead = input.read(buffer);
-                clientName = new String(buffer, 0, bytesRead);
 
-                // Verificar si el nombre del cliente ya está en uso
-                synchronized (connectedClients) {
-                    while (connectedClients.contains(clientName)) {
-                        System.out.println("Nombre de cliente duplicado: " + clientName);
-                        // Enviar un mensaje al cliente indicando que el nombre ya está en uso
-                        output.write("El nombre ya está en uso. Por favor, elige otro.\n".getBytes());
-                        output.flush();
-                        // Leer el siguiente nombre del cliente
-                        bytesRead = input.read(buffer);
-                        clientName = new String(buffer, 0, bytesRead);
-                    }
-                    connectedClients.add(clientName);
-                }
 
                 // Notificar a los demás clientes sobre la conexión del nuevo cliente
                 broadcastMessage(clientName + " se ha conectado");
@@ -143,9 +127,9 @@ public class ChatServer {
     }
 
     // Método para enviar un mensaje a todos los clientes conectados
-    private static void broadcastMessage(String message) {
-        for (ClientHandler clientHandler : clients) {
-            clientHandler.sendMessage(message);
+        private static void broadcastMessage(String message) {
+            for (ClientHandler clientHandler : clients) {
+                clientHandler.sendMessage(message);
+            }
         }
-    }
 }
