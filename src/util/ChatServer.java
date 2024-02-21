@@ -13,23 +13,26 @@ import java.util.Set;
 public class ChatServer {
 
     private static final int PORT = 6000;
-    private static List<ClientHandler> clients = new ArrayList<>();
-    private static Set<String> connectedClients = new HashSet<>();
+    private static List<ClientHandler> clients = new ArrayList<>(); // Lista de manejadores de clientes
+    private static Set<String> connectedClients = new HashSet<>(); // Conjunto de nombres de clientes conectados
     private static List<String> messageHistory = new ArrayList<>(); // Historial de mensajes
 
     public static void main(String[] args) {
         try {
+            // Inicia el servidor en el puerto especificado
             ServerSocket serverSocket = new ServerSocket(PORT);
             System.out.println("Servidor iniciado en el puerto " + PORT);
 
             while (true) {
+                // Espera a que un cliente se conecte y crea un socket para manejar la conexión
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Nuevo cliente conectado");
 
+                // Crea un manejador de cliente para manejar la comunicación con el cliente
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
                 clients.add(clientHandler);
 
-
+                // Inicia un hilo para manejar la comunicación con el cliente
                 Thread clientThread = new Thread(clientHandler);
                 clientThread.start();
             }
@@ -39,6 +42,7 @@ public class ChatServer {
         }
     }
 
+    // Clase interna para manejar la comunicación con un cliente
     private static class ClientHandler implements Runnable {
 
         private Socket clientSocket;
@@ -46,6 +50,7 @@ public class ChatServer {
         private OutputStream output;
         private String clientName;  // Nuevo campo para almacenar el nombre del cliente
 
+        // Constructor
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
             try {
@@ -93,6 +98,7 @@ public class ChatServer {
                     }
                 }
 
+                // Escucha y reenvía los mensajes recibidos del cliente
                 while ((bytesRead = input.read(buffer)) != -1) {
                     String message = new String(buffer, 0, bytesRead);
                     System.out.println("Mensaje recibido de " + clientName + ": " + message);
@@ -125,6 +131,7 @@ public class ChatServer {
             }
         }
 
+        // Método para enviar un mensaje al cliente
         public void sendMessage(String message) {
             try {
                 output.write(message.getBytes());
@@ -135,6 +142,7 @@ public class ChatServer {
         }
     }
 
+    // Método para enviar un mensaje a todos los clientes conectados
     private static void broadcastMessage(String message) {
         for (ClientHandler clientHandler : clients) {
             clientHandler.sendMessage(message);
